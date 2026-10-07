@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="theme-color" content="#1e293b">
+  <meta name="description" content="Theory of Computation: Universal Turing Machine (UTM) Encoder and Simulator Engine">
+  <title>Universal Turing Machine (UTM) Encoder</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <div class="header-content">
+        <div class="header-icon">⚙️</div>
+        <div>
+          <h1>Universal Turing Machine (UTM) Encoder</h1>
+          <p class="subtitle">Theory of Computation • Transition Serializer & UTM Engine</p>
+        </div>
+      </div>
+      <div class="preset-selector-bar">
+        <label for="sampleMachineSelect"><strong>Sample Machine:</strong></label>
+        <select id="sampleMachineSelect" aria-label="Select sample machine">
+          <option value="endingIn1">Accept binary ending in '1' (Default)</option>
+          <option value="evenZeros">Accept binary with even number of 0s</option>
+          <option value="unaryInc">Unary Incrementer (111 → 1111)</option>
+        </select>
+        <button id="loadSampleBtn" type="button" class="btn btn-secondary btn-sm">Load Preset</button>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <!-- Section 1: TM Definition -->
+      <section class="card" id="section-tm-definition">
+        <div class="card-header">
+          <h2>1. Turing Machine Definition</h2>
+          <span class="badge">7-Tuple Setup</span>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="statesInput">States (comma-separated)</label>
+            <input type="text" id="statesInput" value="q0, qaccept, qreject" placeholder="e.g. q0, q1, qaccept, qreject">
+            <small>Defined finite states set $Q$</small>
+          </div>
+          <div class="form-group">
+            <label for="inputAlphabetInput">Input Alphabet $\Sigma$</label>
+            <input type="text" id="inputAlphabetInput" value="0, 1" placeholder="e.g. 0, 1">
+            <small>Allowed symbols for input string</small>
+          </div>
+          <div class="form-group">
+            <label for="tapeAlphabetInput">Tape Alphabet $\Gamma$ (must include Blank)</label>
+            <input type="text" id="tapeAlphabetInput" value="0, 1, B" placeholder="e.g. 0, 1, B">
+            <small>Includes input alphabet and blank symbol 'B'</small>
+          </div>
+          <div class="form-group">
+            <label for="initialStateInput">Initial State $q_0$</label>
+            <input type="text" id="initialStateInput" value="q0" placeholder="e.g. q0">
+          </div>
+          <div class="form-group">
+            <label for="acceptStateInput">Accept State $q_{accept}$</label>
+            <input type="text" id="acceptStateInput" value="qaccept" placeholder="e.g. qaccept">
+          </div>
+          <div class="form-group">
+            <label for="rejectStateInput">Reject State $q_{reject}$</label>
+            <input type="text" id="rejectStateInput" value="qreject" placeholder="e.g. qreject">
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2: Transition Table -->
+      <section class="card" id="section-transition-table">
+        <div class="card-header">
+          <h2>2. Transition Table $\delta$</h2>
+          <button id="addTransitionRowBtn" type="button" class="btn btn-outline btn-sm">+ Add Transition</button>
+        </div>
+        <p class="section-help">Specify deterministic transitions $(q, a) \to (p, b, D)$ where Move is Left (L), Right (R), or Stay (S).</p>
+        
+        <div class="table-container">
+          <table class="data-table" id="transitionTable">
+            <thead>
+              <tr>
+                <th>Current State</th>
+                <th>Read Symbol</th>
+                <th>Next State</th>
+                <th>Write Symbol</th>
+                <th>Move (L/R/S)</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="transitionTableBody">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+
+        <div id="validationErrorBox" class="alert alert-error hidden" role="alert"></div>
+        <div id="validationSuccessBox" class="alert alert-success hidden" role="status"></div>
+
+        <div class="action-bar">
+          <button id="validateBtn" type="button" class="btn btn-secondary">Validate Machine</button>
+          <button id="encodeBtn" type="button" class="btn btn-primary">Validate &amp; Encode TM</button>
+        </div>
+      </section>
+
+      <!-- Section 3: UTM Encoding Display -->
+      <section class="card" id="section-encoding">
+        <div class="card-header">
+          <h2>3. Binary/Numeric UTM Encoding</h2>
+          <span class="badge badge-purple" id="encodingStatusBadge">Ready</span>
+        </div>
+        <p class="section-help">
+          Canonical Theory of Computation Unary-to-Binary Serialization:
+          States and symbols mapped to positive integers $1, 2, \dots$, represented in unary ($1 \to 1, 2 \to 11, \dots$).
+          Moves: $L \to 1, R \to 11, S \to 111$.
+          Transitions serialized as: <code>stateCode 0 readCode 0 nextStateCode 0 writeCode 0 moveCode</code>, separated by <code>00</code>.
+        </p>
+
+        <div class="encoding-columns">
+          <div class="encoding-card">
+            <h3>State Mapping</h3>
+            <div id="stateEncodingDisplay" class="code-block monospace">q0 → 1<br>qaccept → 11<br>qreject → 111</div>
+          </div>
+          <div class="encoding-card">
+            <h3>Symbol Mapping</h3>
+            <div id="symbolEncodingDisplay" class="code-block monospace">0 → 1<br>1 → 11<br>B → 111</div>
+          </div>
+        </div>
+
+        <div class="encoding-block">
+          <h3>Encoded Transitions (Visual Breakdown)</h3>
+          <div class="table-container">
+            <table class="data-table" id="encodedTransitionsTable">
+              <thead>
+                <tr>
+                  <th>Transition</th>
+                  <th>Component Codes (Unary)</th>
+                  <th>Serialized Format</th>
+                </tr>
+              </thead>
+              <tbody id="encodedTransitionsBody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="encoding-block">
+          <div class="code-header">
+            <h3>Complete Serialized TM String $\langle M \rangle$</h3>
+            <button id="copyEncodingBtn" type="button" class="btn btn-outline btn-xs">Copy String</button>
+          </div>
+          <div id="serializedTMDisplay" class="code-box monospace word-break">
+            101010101100101101101101110010111011101110111
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 4: UTM Input & Presets -->
+      <section class="card" id="section-utm-input">
+        <div class="card-header">
+          <h2>4. UTM Input String $w$</h2>
+          <span class="badge">Tape Input</span>
+        </div>
+        
+        <div class="input-test-grid">
+          <div class="form-group flex-1">
+            <label for="inputStringField">Input String (symbols from $\Sigma$)</label>
+            <input type="text" id="inputStringField" value="0011" placeholder="e.g. 0011 or 1">
+            <small>For empty input, tape will begin with blank 'B'.</small>
+          </div>
+          <div class="test-cases-group">
+            <label>Quick Test Cases:</label>
+            <div class="btn-group">
+              <button type="button" class="btn btn-sm btn-outline test-case-btn" data-input="1">Test 1: "1"</button>
+              <button type="button" class="btn btn-sm btn-outline test-case-btn" data-input="01">Test 2: "01"</button>
+              <button type="button" class="btn btn-sm btn-outline test-case-btn" data-input="001">Test 3: "001"</button>
+              <button type="button" class="btn btn-sm btn-outline test-case-btn" data-input="0">Test 4: "0"</button>
+              <button type="button" class="btn btn-sm btn-outline test-case-btn" data-input="000">Test 5: "000"</button>
+            </div>
+          </div>
+        </div>
+        
+        <div id="inputErrorBox" class="alert alert-error hidden" role="alert"></div>
+
+        <div class="simulation-controls">
+          <button id="runUtmBtn" type="button" class="btn btn-success btn-lg">▶ Run UTM</button>
+          <button id="stepUtmBtn" type="button" class="btn btn-secondary">Step</button>
+          <button id="resetUtmBtn" type="button" class="btn btn-outline">Reset</button>
+        </div>
+        <div class="utm-spec-note">
+          <small>Enter input symbols from alphabet &Sigma;. Click <strong>▶ Run UTM</strong> to execute until terminal halt state, or <strong>Step</strong> to step transition-by-transition.</small>
+        </div>
+      </section>
+
+      <!-- Section 5: Real-time Tape & Execution Trace -->
+      <section class="card" id="section-simulation">
+        <div class="card-header">
+          <h2>5. UTM Simulator Execution</h2>
+          <div class="sim-status-box" id="simStatusPill">
+            <span class="dot"></span> <span id="simStatusText">Ready</span>
+          </div>
+        </div>
+
+        <!-- Interactive Tape Visualization -->
+        <div class="tape-viewport-container">
+          <div class="tape-label">Interactive Tape &amp; Scanning Head:</div>
+          <div class="tape-track-wrapper">
+            <div class="tape-track" id="tapeTrack">
+              <!-- Tape cells rendered here -->
+            </div>
+          </div>
+          <div class="tape-meta">
+            <span><strong>Head Position:</strong> <span id="currentHeadPosDisplay">0</span></span>
+            <span><strong>Current State:</strong> <span id="currentStateDisplay">q0</span></span>
+            <span><strong>Read Symbol:</strong> <span id="currentReadSymbolDisplay">0</span></span>
+            <span><strong>Executed Steps:</strong> <span id="currentStepCountDisplay">0</span></span>
+          </div>
+        </div>
+
+        <!-- Execution Trace Table -->
+        <div class="trace-section">
+          <h3>Execution Trace</h3>
+          <div class="table-container trace-table-container">
+            <table class="data-table" id="traceTable">
+              <thead>
+                <tr>
+                  <th>Step</th>
+                  <th>State</th>
+                  <th>Read</th>
+                  <th>Write</th>
+                  <th>Move</th>
+                  <th>Head Pos</th>
+                  <th>Tape Snapshot</th>
+                </tr>
+              </thead>
+              <tbody id="traceTableBody">
+                <tr class="empty-row"><td colspan="7">No execution trace yet. Click "Run UTM" or "Step" above.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 6: Final Result -->
+      <section class="card result-card" id="section-result">
+        <div class="card-header">
+          <h2>6. Final Result</h2>
+        </div>
+        <div class="result-display-box" id="resultDisplayBox">
+          <div class="result-verdict" id="resultVerdictText">—</div>
+          <div class="result-details-grid">
+            <div class="result-stat">
+              <span class="stat-title">Total Steps</span>
+              <span class="stat-value" id="resStepsValue">0</span>
+            </div>
+            <div class="result-stat">
+              <span class="stat-title">Final State</span>
+              <span class="stat-value monospace" id="resFinalStateValue">—</span>
+            </div>
+            <div class="result-stat stat-full">
+              <span class="stat-title">Final Tape Contents</span>
+              <span class="stat-value monospace tape-preview" id="resFinalTapeValue">—</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <p>Universal Turing Machine (UTM) Encoder &amp; Simulator • Formal Languages &amp; Automata Theory</p>
+      <small>Fully client-side &amp; offline capable • PWA ready</small>
+    </footer>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
